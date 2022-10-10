@@ -1,0 +1,64 @@
+#! /usr/bin/env bash
+
+remote_home='/data/c_log/hzq'
+remote_apus_home="${remote_home}/apus"
+remote_ck_home="${remote_home}/native-clickhouse"
+
+function lets ()
+{
+    local cmd="screen -S $STY -X at c_log# stuff $'$1\n'"
+    eval $cmd
+}
+
+lets 'cd /data/c_log/hzq/apus/be'
+
+if [ "$*" = "stop clean start" ]
+then
+    lets 'sh bin/stop_be.sh'
+    lets 'rm -rf storage/ch_path/*'    
+    lets 'sh bin/start_be.sh --daemon'
+    exit 0
+fi
+
+if [ "$*" = "stop clean" ]
+then
+    lets 'sh bin/stop_be.sh'
+    lets 'rm -rf storage/ch_path/*'
+    exit 0
+fi
+
+if [ "$*" = "stop" ]
+then
+    lets 'sh bin/stop_be.sh'
+    exit 0
+fi
+
+if [ "$*" = "update" ]
+then
+    lets 'rm lib/cdw_be'
+    lets 'scp -P 36000 hzq@9.134.85.83:/data/hzq/ApusData/output/be/lib/cdw_be /data/c_log/hzq/apus/be/lib/' 
+    exit 0
+fi 
+
+if [ "$*" = "ck update" ]
+then
+    lets 'cd /data/c_log/hzq/native-clickhouse'
+    lets 'rm bin/clickhouse'
+    lets 'scp -P 36000 hzq@9.134.85.83:/data/hzq/ClickHouse/build-debug/programs/clickhouse ./bin'
+ 
+    exit 0
+fi
+
+if [ "$*" = "ck restart" ]
+then
+    lets 'cd /data/c_log/hzq/native-clickhouse'
+    lets 'ps ux|grep ./bin/clickhouse|grep -v grep|awk \x27{print \x24 2}\x27|xargs kill -9'
+    lets 'nohup ./bin/clickhouse server --config-file=config/config.xml > nohup.out 2>&1 &'
+
+    exit 0
+fi 
+
+echo "$* matches nothing."
+exit 1
+
+
