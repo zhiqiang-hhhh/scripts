@@ -34,60 +34,64 @@ function print_result() {
     fi
 }
 
+
+
 doris_be="$HOME/doris/be"
 doris_fe="$HOME/doris/fe"
 doris_workspace="$HOME/workspace"
 
+# usage: bestop $type("Debug"/"Release") $seq(1/2)
+function bestop()
+{
+	local type=$1
+	local seq=$2
+	cd "$doris_workspace/build_$type/be_$seq" && sh bin/stop_be.sh
+	cd -
+}
+
+# usage: bemake $type("Debug"/"Release") $seq(1/2)
 function bemake()
 {
 	local type=$1
+	local seq=$2
 	local build_dir="$doris_be/build_$type"
-	
+
 	cd $build_dir && echo "Making doris be, type: $type"
 	ninja -j 32
-	cp "$doris_be/output/lib/doris_be" "$HOME/workspace/$type/be/lib"
+	rm "$HOME/workspace/$type/be_$seq/lib/doris_be"
+	echo "Copying from $doris_be/build_$type/src/service/doris_be to $HOME/workspace/$type/be_$seq/lib"
+	cp "$doris_be/build_$type/src/service/doris_be" "$HOME/workspace/$type/be_$seq/lib"
 	cd -
 }
 
-function mdb()
-{
-	bemake "Debug"
-}
-
-function mrb()
-{
-	bemake "Release"
-}
-
+# usage: bestart $type("Debug"/"Release") $seq(1/2)
 function bestart()
 {
 	local type=$1
-	cd "$doris_workspace/$type/be"
+	local seq=$2
+	cd "$doris_workspace/$type/be_$seq"
 
 	sh bin/stop_be.sh
 	if [ $? -eq 0 ];then
-		echo -e "\033[32mStop be succeed \033[0m "
+		echo -e "\033[32mStop be $seq succeed \033[0m "
 	else
-		echo -e "\033[31mStop be failed \033[0m "
+		echo -e "\033[31mStop be $seq failed \033[0m "
 	fi
-	
+
 	sh bin/start_be.sh --daemon
 	if [ $? -eq 0 ];then
-		echo -e "\033[32mStart be succeed \033[0m "
+		echo -e "\033[32mStart be $seq succeed \033[0m "
 	else
-		echo -e "\033[31mStart be failed \033[0m "
+		echo -e "\033[31mStart be $seq failed \033[0m "
 	fi
-	
+
 	cd -
 }
 
-function sdb()
+function femake()
 {
-	bestart "Debug"
-}
-function srb()
-{
-	bestart "Release"
+	cd "$doris_fe/"
+	mvn package -pl fe-common;fe-core -Dskip.doc=true -DskipTests -Dcheckstyle.skip=true
 }
 
 function festart()
@@ -109,14 +113,14 @@ function festart()
 	else
 		echo -e "\033[31mStop fe failed \033[0m "
 	fi
-	
+
     sh bin/start_fe.sh --daemon
 	if [ $? -eq 0 ];then
 		echo -e "\033[32mStart fe succeed \033[0m "
 	else
 		echo -e "\033[31mStart fe failed \033[0m "
 	fi
-	
+
     cd -
 }
 
@@ -140,8 +144,9 @@ function cfe()
 
 function cc()
 {
-	mysql -uroot -h127.0.0.1 -P6937 -e 'ALTER SYSTEM ADD BACKEND "127.0.0.1:9251"';
+	mysql -uroot -h127.0.0.1 -P6937 -e 'ALTER SYSTEM ADD BACKEND "xxx:9251"';
 }
+
 
 function initdoris()
 {
@@ -150,9 +155,9 @@ function initdoris()
 	rm -rf $doris_workspace/fe/doris-meta/*
 	rm -rf $doris_workspace/$type/be/storage/*
 
-  festart
+    festart
 	sdb
 
 	cd -
+    return 0
 }
-
